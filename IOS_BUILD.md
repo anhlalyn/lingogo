@@ -1,6 +1,7 @@
 # Build file iOS bằng GitHub Actions
 
 Workflow có sẵn: `.github/workflows/ios-unsigned.yml`.
+Repository: https://github.com/anhlalyn/lingogo
 File tạo ra: `LingoGo-unsigned.ipa` dành cho iPhone thật, không phải iOS Simulator.
 Không cần cung cấp tài khoản Apple, chứng chỉ hoặc mật khẩu để build file chưa ký này.
 IPA chưa ký cần được ký lại trước khi iPhone cho phép cài/chạy; tải file bằng Safari
@@ -42,6 +43,7 @@ Billing & licensing/Actions usage trước khi chạy nếu bạn cần tránh p
 - Firebase iOS đã đăng ký trong dự án `lingogo-f526e` và thêm vào `firebase_options.dart`.
 - `GoogleService-Info.plist` được đưa vào tài nguyên Runner.
 - iOS tối thiểu 15.0 để phù hợp Firebase SDK hiện tại; CocoaPods đã cấu hình.
+- Firebase CocoaPods ghim 12.19.0 vì FirebaseAppCheck không có bản 12.19.3.
 - Các mô tả quyền micro và nhận diện lời nói đã có trong Info.plist.
 
 Build chưa ký không có chữ ký hay entitlement App Attest. Nếu ký/cài bằng công cụ
@@ -53,7 +55,9 @@ Không coi việc build thành công là đã kiểm thử nghe/nói hoặc AI t
 
 Mở bước màu đỏ trong Actions và gửi phần thông báo lỗi để sửa đúng bước.
 Không chạy lệnh build iOS trên Windows: Xcode chỉ có trên macOS.
-Hiện mới kiểm tra cấu hình và mã Flutter trên Windows, chưa chạy Xcode/GitHub Actions.
+Đã build thành công trên GitHub Actions và qua 38 kiểm thử Flutter:
+https://github.com/anhlalyn/lingogo/actions/runs/43849622270
+Chưa ký/cài và chưa kiểm thử thực tế trên iPhone. Các lượt build mới sẽ nằm trong tab Actions.
 
 Tài liệu:
 - https://docs.flutter.dev/deployment/ios
