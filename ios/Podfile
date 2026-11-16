@@ -1,5 +1,8 @@
 platform :ios, '15.0'
 
+# App Check has no 12.19.3 CocoaPods release; use the matching SDK release.
+$FirebaseSDKVersion = '12.19.0'
+
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 project 'Runner', {
