@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function admin() { return signedIn() && request.auth.token.get('admin', false) == true; }
+    function text(v, n) { return v is string && v.size() > 0 && v.size() <= n; }
+    function word(w) {
+      return w.word is string && w.meaning is string && w.pronunciation is string
+        && w.example is string && w.exampleTranslation is string;
+    }
+    function words(w) {
+      return w is list && w.size() >= 1 && w.size() <= 5
+        && word(w[0]) && (w.size()<2 || word(w[1])) && (w.size()<3 || word(w[2]))
+        && (w.size()<4 || word(w[3])) && (w.size()<5 || word(w[4]));
+    }
+    function options(o) {
+      return o is list && o.size() <= 12 && o.toSet().size() == o.size()
+        && (o.size() == 0 || o.join('\x00').split('\x00') == o)
+        && o.join('').size() <= 1800;
+    }
+    // Trusted admins review semantics; Dart validates individual text lengths.
+    function question(q) {
+      return q.type in ['multiple_choice','fill_blank','reorder_words','match_pairs']
+        && q.prompt is string && q.answer is string && q.explanation is string
+        && options(q.options);
+    }
+    function questions(q) {
+      return q is list && q.size() >= 1 && q.size() <= 4 && question(q[0])
+        && (q.size()<2 || question(q[1])) && (q.size()<3 || question(q[2])) && (q.size()<4 || question(q[3]));
+    }
+    function validLesson(d) {
+      return d.keys().hasOnly(['languageCode','level','title','subtitle','icon','order','vocabulary','exercises',
+          'status','revision','version','source','aiProvider','createdBy','createdAt','updatedAt','publishedAt'])
+        && d.languageCode in ['en','zh','ja','ko']
+        && d.level in {'en':['A1','A2','B1','B2','C1','C2'], 'zh':['HSK 1','HSK 2','HSK 3','HSK 4','HSK 5','HSK 6'], 'ja':['JLPT N5','JLPT N4','JLPT N3','JLPT N2','JLPT N1'], 'ko':['TOPIK I','TOPIK I 2','TOPIK II 3','TOPIK II 4','TOPIK II 5','TOPIK II 6']}[d.languageCode]
+        && text(d.title,120) && text(d.subtitle,300) && text(d.icon,12)
+        && d.order is int && d.order >= 0 && d.order <= 100000
+        && d.source in ['manual','ai'] && (!('aiProvider' in d) || d.aiProvider == 'gemini')
+        && (d.source != 'ai' || d.aiProvider == 'gemini')
+        && d.revision is int && d.version is int
+        && words(d.vocabulary) && questions(d.exercises);
+    }
+    function auditFor(id, d, action) {
+      let log = getAfter(/databases/$(database)/documents/adminAuditLogs/$(id + '_r' + string(d.revision))).data;
+      return log.actorUid == request.auth.uid && log.entityId == id && log.revision == d.revision
+        && log.action == action && log.createdAt == request.time;
+    }
+    match /lessons/{id} {
+      allow read: if signedIn() && (resource.data.status == 'published' || admin());
+      allow create: if admin() && id.matches('l_[A-Za-z0-9_-]{8,80}') && validLesson(request.resource.data)
+        && request.resource.data.status == 'draft' && request.resource.data.revision == 1
+        && request.resource.data.version == 1 && !('publishedAt' in request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && auditFor(id, request.resource.data, 'save_draft');
+      allow update: if admin() && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.updatedAt == request.time
+        && ((resource.data.status == 'draft' && request.resource.data.status == 'draft'
+            && validLesson(request.resource.data)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['languageCode','level','title','subtitle','icon','order','vocabulary','exercises','revision','updatedAt'])
+            && auditFor(id,request.resource.data,'save_draft'))
+          || (resource.data.status == 'draft' && request.resource.data.status == 'published'
+            && validLesson(request.resource.data) && request.resource.data.version == resource.data.revision
+            && request.resource.data.publishedAt == request.time
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','revision','version','publishedAt','updatedAt'])
+            && auditFor(id,request.resource.data,'publish'))
+          || (resource.data.status in ['draft','published'] && request.resource.data.status == 'archived'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','revision','updatedAt'])
+            && auditFor(id,request.resource.data,'archive')));
+      allow delete: if false;
+    }
+    match /adminAuditLogs/{logId} {
+      allow read: if admin();
+      allow create: if admin() && request.resource.data.keys().hasOnly(['actorUid','action','entityId','revision','createdAt'])
+        && request.resource.data.actorUid == request.auth.uid && request.resource.data.createdAt == request.time
+        && request.resource.data.revision is int && request.resource.data.revision >= 1
+        && request.resource.data.entityId is string
+        && logId == request.resource.data.entityId + '_r' + string(request.resource.data.revision)
+        && getAfter(/databases/$(database)/documents/lessons/$(request.resource.data.entityId)).data.revision == request.resource.data.revision
+        && getAfter(/databases/$(database)/documents/lessons/$(request.resource.data.entityId)).data.updatedAt == request.time
+        && (!exists(/databases/$(database)/documents/lessons/$(request.resource.data.entityId))
+          || get(/databases/$(database)/documents/lessons/$(request.resource.data.entityId)).data.revision == request.resource.data.revision - 1)
+        && ((request.resource.data.action == 'save_draft' && getAfter(/databases/$(database)/documents/lessons/$(request.resource.data.entityId)).data.status == 'draft')
+          || (request.resource.data.action == 'publish' && getAfter(/databases/$(database)/documents/lessons/$(request.resource.data.entityId)).data.status == 'published')
+          || (request.resource.data.action == 'archive' && getAfter(/databases/$(database)/documents/lessons/$(request.resource.data.entityId)).data.status == 'archived'));
+      allow update, delete: if false;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

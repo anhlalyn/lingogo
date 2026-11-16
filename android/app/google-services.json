@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "703861489787",
+    "project_id": "lingogo-f526e",
+    "storage_bucket": "lingogo-f526e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:703861489787:android:202e73a73f916fb955a2de",
+        "android_client_info": {
+          "package_name": "com.example.lingogo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "703861489787-s3e6v9l3putibbi4m6uf3tji2gmh2rg6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_mNLjxcWzLNQhU6H_60sEP2qeokedVKg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "703861489787-s3e6v9l3putibbi4m6uf3tji2gmh2rg6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

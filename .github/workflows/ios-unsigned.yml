@@ -1,0 +1,87 @@
+name: Build iOS unsigned IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-unsigned-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Locate Flutter project
+        id: project
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f pubspec.yaml ]]; then
+            echo 'directory=.' >> "$GITHUB_OUTPUT"
+          elif [[ -f lingogo/pubspec.yaml ]]; then
+            echo 'directory=lingogo' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Flutter project not found.' >&2
+            exit 1
+          fi
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.41.6'
+          channel: stable
+          cache: true
+
+      - name: Prepare iOS dependencies
+        working-directory: ${{ steps.project.outputs.directory }}
+        run: |
+          set -euo pipefail
+          flutter config --no-enable-swift-package-manager
+          flutter pub get --enforce-lockfile
+          flutter precache --ios
+          test -f ios/Runner/GoogleService-Info.plist
+          plutil -lint ios/Runner/Info.plist ios/Runner/GoogleService-Info.plist
+
+      - name: Analyze and test
+        working-directory: ${{ steps.project.outputs.directory }}
+        run: |
+          set -euo pipefail
+          flutter analyze
+          flutter test
+
+      - name: Build for physical iPhone without signing
+        working-directory: ${{ steps.project.outputs.directory }}
+        run: |
+          set -euo pipefail
+          flutter build ios --release --no-codesign --build-number="$GITHUB_RUN_NUMBER"
+
+      - name: Package unsigned IPA
+        working-directory: ${{ steps.project.outputs.directory }}
+        run: |
+          set -euo pipefail
+          test -f build/ios/iphoneos/Runner.app/Info.plist
+          mkdir -p build/ios/unsigned/Payload
+          ditto build/ios/iphoneos/Runner.app build/ios/unsigned/Payload/Runner.app
+          cd build/ios/unsigned
+          zip -qry LingoGo-unsigned.ipa Payload
+          unzip -tq LingoGo-unsigned.ipa
+          shasum -a 256 LingoGo-unsigned.ipa > LingoGo-unsigned.ipa.sha256
+          echo 'Unsigned physical-device IPA. Re-sign before installing on an iPhone.' > README.txt
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: LingoGo-iOS-unsigned
+          path: |
+            ${{ steps.project.outputs.directory }}/build/ios/unsigned/LingoGo-unsigned.ipa
+            ${{ steps.project.outputs.directory }}/build/ios/unsigned/LingoGo-unsigned.ipa.sha256
+            ${{ steps.project.outputs.directory }}/build/ios/unsigned/README.txt
+          if-no-files-found: error
+          retention-days: 7

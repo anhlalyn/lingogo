@@ -1,0 +1,43 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "lingogo-f526e",
+          "appId": "1:703861489787:android:202e73a73f916fb955a2de",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "lingogo-f526e",
+          "configurations": {
+            "android": "1:703861489787:android:202e73a73f916fb955a2de",
+            "web": "1:703861489787:web:6fbd8c5bad67ddd255a2de",
+            "ios": "1:703861489787:ios:0445cf9d2a6e8c1955a2de"
+          }
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "lingogo-f526e",
+          "appId": "1:703861489787:ios:0445cf9d2a6e8c1955a2de",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      }
+    }
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "auth": {
+      "port": 9099
+    },
+    "singleProjectMode": true
+  }
+}
